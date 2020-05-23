@@ -55,13 +55,13 @@ func createEncryptedStreamPair(alice, bob io.ReadWriter) (*EncryptedStream, *Enc
 	}
 
 	config := &Config{
-		MaxEncryptOverhead: secretbox.Overhead + nonceSize,
 		EncryptFunc: func(ciphertext, plaintext []byte) ([]byte, error) {
 			return encrypt(ciphertext, plaintext, key)
 		},
 		DecryptFunc: func(plaintext, ciphertext []byte) ([]byte, error) {
 			return decrypt(plaintext, ciphertext, key)
 		},
+		MaxEncryptOverhead: secretbox.Overhead + nonceSize,
 	}
 
 	aliceEncrypted, err := NewEncryptedStream(alice, config)

@@ -37,7 +37,6 @@ need to do is to provide a pair of encrypt/decrypt function:
 
 ```go
 encryptedConn, err := stream.NewEncryptedStream(conn, &stream.Config{
-  MaxEncryptOverhead: secretbox.Overhead + nonceSize,
   EncryptFunc: func(ciphertext, plaintext []byte) ([]byte, error) {
     var nonce [nonceSize]byte
     _, err := rand.Read(nonce[:])
@@ -65,6 +64,7 @@ encryptedConn, err := stream.NewEncryptedStream(conn, &stream.Config{
 
     return plaintext, nil
   },
+  MaxEncryptOverhead: secretbox.Overhead + nonceSize,
 })
 ```
 

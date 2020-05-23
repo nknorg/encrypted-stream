@@ -22,26 +22,28 @@ type DecryptFunc func(plaintext, ciphertext []byte) ([]byte, error)
 
 // Config is the stream configuration.
 type Config struct {
-	// MaxChunkSize is the max number of bytes that will be encrypted and sent in
-	// a single chunk.
-	MaxChunkSize int
-
-	// MaxOverheadSize is the max number of bytes overhead of ciphertext compared
-	// to plaintext.
-	MaxEncryptOverhead int
-
 	// EncryptFunc for encrypting buffer.
 	EncryptFunc EncryptFunc
 
 	// DecryptFunc for decrypting buffer.
 	DecryptFunc DecryptFunc
+
+	// MaxOverheadSize is the max number of bytes overhead of ciphertext compared
+	// to plaintext. It is only used to determine internal buffer size, so
+	// overestimate is ok. If zero, default value (64) will be used.
+	MaxEncryptOverhead int
+
+	// MaxChunkSize is the max number of bytes that will be encrypted and write to
+	// underlying stream in a single chunk. If zero, default value (65535) will be
+	// used.
+	MaxChunkSize int
 }
 
 // DefaultConfig returns the default config.
 func DefaultConfig() *Config {
 	return &Config{
-		MaxChunkSize:       65535,
 		MaxEncryptOverhead: 64,
+		MaxChunkSize:       65535,
 	}
 }
 
@@ -51,16 +53,20 @@ func (config *Config) Verify() error {
 		return errors.New("nil config")
 	}
 
-	if config.MaxChunkSize <= 0 {
-		return errors.New("MaxChunkSize should be greater than 0")
-	}
-
 	if config.EncryptFunc == nil {
 		return errors.New("EncryptFunc should not be nil")
 	}
 
 	if config.DecryptFunc == nil {
 		return errors.New("DecryptFunc should not be nil")
+	}
+
+	if config.MaxEncryptOverhead < 0 {
+		return errors.New("MaxEncryptOverhead should not be less than 0")
+	}
+
+	if config.MaxChunkSize <= 0 {
+		return errors.New("MaxChunkSize should be greater than 0")
 	}
 
 	return nil
