@@ -14,7 +14,7 @@ type EncryptedStream struct {
 	config *Config
 	stream io.ReadWriter
 
-	sync.RWMutex
+	lock     sync.RWMutex
 	isClosed bool
 
 	readLock        sync.Mutex
@@ -53,8 +53,8 @@ func NewEncryptedStream(stream io.ReadWriter, config *Config) (*EncryptedStream,
 
 // IsClosed returns whether the EncryptedStream is closed.
 func (es *EncryptedStream) IsClosed() bool {
-	es.RLock()
-	defer es.RUnlock()
+	es.lock.RLock()
+	defer es.lock.RUnlock()
 	return es.isClosed
 }
 
@@ -130,17 +130,18 @@ func (es *EncryptedStream) Write(b []byte) (int, error) {
 // Close implements net.Conn and io.Closer. Will call underlying stream's
 // Close() method if it has one.
 func (es *EncryptedStream) Close() error {
-	es.Lock()
+	es.lock.Lock()
+	defer es.lock.Unlock()
+
 	if es.isClosed {
-		es.Unlock()
 		return nil
 	}
-	es.isClosed = true
-	es.Unlock()
 
 	if stream, ok := es.stream.(io.Closer); ok {
 		return stream.Close()
 	}
+
+	es.isClosed = true
 
 	return nil
 }
