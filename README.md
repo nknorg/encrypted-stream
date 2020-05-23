@@ -11,9 +11,17 @@ Status](https://travis-ci.org/nknorg/encrypted-stream.svg?branch=master)](https:
 Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
 Encrypted-stream is a Golang library that transforms any `net.Conn` or
-`io.ReadWriter` stream to an encrypted stream with any encrypt/decrypt function.
-The encrypted stream implements `net.Conn` and `io.ReadWriter` and can be used
-transparently.
+`io.ReadWriter` stream to an encrypted stream with any provided encrypt/decrypt
+function.
+
+- Works with any encryption/authentication algorithm or even general
+  transformation. Only a pair of encrypt/decrypt function needs to be provided.
+
+- The encrypted stream implements `net.Conn` and `io.ReadWriter` and can be used
+  transparently.
+
+- An encrypted stream only adds a small constant memory overhead compared to the
+  original stream.
 
 ## Documentation
 
