@@ -88,10 +88,10 @@ $ go test -v -bench=.
 goos: darwin
 goarch: amd64
 pkg: github.com/nknorg/encrypted-stream
-BenchmarkPipe-12    	    4609	    257154 ns/op	 509.70 MB/s	     121 B/op	       9 allocs/op
-BenchmarkTCP-12     	    5797	    248237 ns/op	 528.01 MB/s	     120 B/op	       9 allocs/op
+BenchmarkPipe-12    	    3867	    260929 ns/op	 502.33 MB/s	     292 B/op	       9 allocs/op
+BenchmarkTCP-12     	    6603	    215170 ns/op	 609.16 MB/s	     288 B/op	       9 allocs/op
 PASS
-ok  	github.com/nknorg/encrypted-stream	3.703s
+ok  	github.com/nknorg/encrypted-stream	2.509s
 ```
 
 ## Contributing
