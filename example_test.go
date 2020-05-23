@@ -28,7 +28,6 @@ func Example() {
 	// We simply prepend nonce to the encrypted data, so overhead is encryption
 	// overhead (16 bytes) + nonce size (24 bytes).
 	config := &stream.Config{
-		MaxEncryptOverhead: secretbox.Overhead + nonceSize,
 		EncryptFunc: func(ciphertext, plaintext []byte) ([]byte, error) {
 			var nonce [nonceSize]byte
 			_, err := rand.Read(nonce[:])
@@ -56,6 +55,7 @@ func Example() {
 
 			return plaintext, nil
 		},
+		MaxEncryptOverhead: secretbox.Overhead + nonceSize,
 	}
 
 	// We use a net.Conn as an example.
