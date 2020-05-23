@@ -1,0 +1,9 @@
+.idea
+vendor
+*.patch
+*~
+.DS_Store
+main
+Nkn.framework
+nkn.aar
+nkn-sources.jar
