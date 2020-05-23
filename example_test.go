@@ -18,16 +18,26 @@ func Example() {
 		nonceSize = 24
 	)
 
-	// In this example we use a fixed key.
-	var key [keySize]byte
-	_, err := rand.Read(key[:])
+	// We use a net.Conn as an example.
+	conn, err := net.Dial("tcp", "golang.org:80")
 	if err != nil {
 		panic(err)
 	}
 
-	// We simply prepend nonce to the encrypted data, so overhead is encryption
-	// overhead (16 bytes) + nonce size (24 bytes).
+	// In this example we treat key as a prior knowledge. If you use public-key
+	// cryptography, you can to do key exchange here using the original stream
+	// (e.g. alice sends her public key to bob given that she already know bob's
+	// public key) before creating encrypted stream from it.
+
+	// In this example we use a fixed key.
+	var key [keySize]byte
+	_, err = rand.Read(key[:])
+	if err != nil {
+		panic(err)
+	}
+
 	config := &stream.Config{
+		// Provide the encryption function.
 		EncryptFunc: func(ciphertext, plaintext []byte) ([]byte, error) {
 			var nonce [nonceSize]byte
 			_, err := rand.Read(nonce[:])
@@ -40,6 +50,7 @@ func Example() {
 
 			return ciphertext[:nonceSize+len(encrypted)], nil
 		},
+		// Provide the decryption function.
 		DecryptFunc: func(plaintext, ciphertext []byte) ([]byte, error) {
 			if len(ciphertext) <= nonceSize {
 				return nil, fmt.Errorf("invalid ciphertext size %d", len(ciphertext))
@@ -55,19 +66,10 @@ func Example() {
 
 			return plaintext, nil
 		},
+		// We simply prepend nonce to the encrypted data, so overhead is encryption
+		// overhead (16 bytes) + nonce size (24 bytes).
 		MaxEncryptOverhead: secretbox.Overhead + nonceSize,
 	}
-
-	// We use a net.Conn as an example.
-	conn, err := net.Dial("tcp", "golang.org:80")
-	if err != nil {
-		panic(err)
-	}
-
-	// In this example we treat key as a prior knowledge. If you use public-key
-	// cryptography, you can to do key exchange here (e.g. alice sends her public
-	// key to bob given that she already know bob's public key) before creating
-	// encrypted stream.
 
 	// Create an encrypted stream from a conn.
 	encryptedConn, err := stream.NewEncryptedStream(conn, config)

@@ -6,27 +6,21 @@ import (
 	"github.com/imdario/mergo"
 )
 
-// EncryptFunc encrypts a plaintext to ciphertext. Returns ciphertext slice
-// whose length should be equal to ciphertext length. Input buffer ciphertext
-// has enough size for encrypted plaintext, and their size satisfy:
-// `len(plaintext) <= config.MaxChunkSize` and `len(ciphertext) ==
-// config.MaxChunkSize + config.MaxOverheadSize`.
-type EncryptFunc func(ciphertext, plaintext []byte) ([]byte, error)
-
-// DecryptFunc decrypts a ciphertext to plaintext. Returns plaintext slice whose
-// length should be equal to plaintext length. Input buffer plaintext has enough
-// size for decrypted ciphertext, and their size satisfy: `len(plaintext) ==
-// config.MaxChunkSize` and `len(ciphertext) <= config.MaxChunkSize +
-// config.MaxOverheadSize`.
-type DecryptFunc func(plaintext, ciphertext []byte) ([]byte, error)
-
-// Config is the stream configuration.
+// Config is the configuration for encrypted stream.
 type Config struct {
-	// EncryptFunc for encrypting buffer.
-	EncryptFunc EncryptFunc
+	// EncryptFunc encrypts a plaintext to ciphertext. Returns ciphertext slice
+	// whose length should be equal to ciphertext length. Input buffer ciphertext
+	// has enough length for encrypted plaintext, and the length satisfy:
+	// 	len(plaintext) <= config.MaxChunkSize
+	// 	len(ciphertext) == config.MaxChunkSize + config.MaxOverheadSize
+	EncryptFunc func(ciphertext, plaintext []byte) ([]byte, error)
 
-	// DecryptFunc for decrypting buffer.
-	DecryptFunc DecryptFunc
+	// DecryptFunc decrypts a ciphertext to plaintext. Returns plaintext slice
+	// whose length should be equal to plaintext length. Input buffer plaintext
+	// has enough length for decrypted ciphertext, and the length satisfy:
+	//	len(plaintext) == config.MaxChunkSize
+	//	len(ciphertext) <= config.MaxChunkSize + config.MaxOverheadSize
+	DecryptFunc func(plaintext, ciphertext []byte) ([]byte, error)
 
 	// MaxOverheadSize is the max number of bytes overhead of ciphertext compared
 	// to plaintext. It is only used to determine internal buffer size, so
