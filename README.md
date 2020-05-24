@@ -11,17 +11,18 @@ Status](https://travis-ci.org/nknorg/encrypted-stream.svg?branch=master)](https:
 Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
 Encrypted-stream is a Golang library that transforms any `net.Conn` or
-`io.ReadWriter` stream to an encrypted stream with any provided encrypt/decrypt
-function.
-
-- Works with any encryption/authentication algorithm or even general
-  transformation. Only a pair of encrypt/decrypt function needs to be provided.
+`io.ReadWriter` stream to an encrypted and/or authenticated stream.
 
 - The encrypted stream implements `net.Conn` and `io.ReadWriter` and can be used
-  transparently.
+  as drop-in replacement.
 
-- An encrypted stream only adds a small constant memory overhead compared to the
-  original stream.
+- Works with any encryption, authentication, or authenticated encryption
+  algorithm or even arbitrary transformation. Only a cipher that implements
+  encrypt/decrypt needs to be provided. `XSalsa20Poly1305Cipher` is provided as
+  reference.
+
+- The encrypted stream only adds a small constant memory overhead compared to
+  the original stream.
 
 ## Documentation
 
@@ -30,49 +31,20 @@ Full documentation can be found at
 
 ## Usage
 
-Assume you have a `net.Conn`:
+Assume you have a `net.Conn` and you want to transform it into an encrypted
+`net.Conn`:
 
 ```go
 conn, err := net.Dial("tcp", "host:port")
 ```
 
-and you want to transform it into an encrypted `net.Conn`. For the encryption
-algorithm, let's use `golang.org/x/crypto/nacl/secretbox` as example.
-
 You first need to have a shared key at both side of the connection, (e.g.
 derived from  key exchange algorithm, or pre-determined). Then all you
-need to do is to provide a pair of encrypt/decrypt function:
+need to do is to choose or implements a cipher:
 
 ```go
 encryptedConn, err := stream.NewEncryptedStream(conn, &stream.Config{
-  EncryptFunc: func(ciphertext, plaintext []byte) ([]byte, error) {
-    var nonce [nonceSize]byte
-    _, err := rand.Read(nonce[:])
-    if err != nil {
-      return nil, err
-    }
-
-    copy(ciphertext[:nonceSize], nonce[:])
-    encrypted := secretbox.Seal(ciphertext[nonceSize:nonceSize], plaintext, &nonce, &key)
-
-    return ciphertext[:nonceSize+len(encrypted)], nil
-  },
-  DecryptFunc: func(plaintext, ciphertext []byte) ([]byte, error) {
-    if len(ciphertext) <= nonceSize {
-      return nil, fmt.Errorf("invalid ciphertext size %d", len(ciphertext))
-    }
-
-    var nonce [nonceSize]byte
-    copy(nonce[:], ciphertext[:nonceSize])
-
-    plaintext, ok := secretbox.Open(plaintext[:0], ciphertext[nonceSize:], &nonce, &key)
-    if !ok {
-      return nil, errors.New("decrypt failed")
-    }
-
-    return plaintext, nil
-  },
-  MaxEncryptOverhead: secretbox.Overhead + nonceSize,
+  Cipher: stream.NewXSalsa20Poly1305Cipher(&key),
 })
 ```
 
@@ -84,8 +56,8 @@ connection.
 
 ## Benchmark
 
-The following benchmark is using `golang.org/x/crypto/nacl/secretbox` for
-encryption/decryption.
+The following benchmark is using XSalsa20Poly1305Cipher
+(`golang.org/x/crypto/nacl/secretbox`).
 
 ```
 $ go test -v -bench=.

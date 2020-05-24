@@ -4,64 +4,21 @@ import (
 	"bytes"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"sync"
 	"testing"
-
-	"golang.org/x/crypto/nacl/secretbox"
 )
-
-const (
-	keySize   = 32
-	nonceSize = 24
-)
-
-func encrypt(ciphertext, plaintext []byte, key [keySize]byte) ([]byte, error) {
-	var nonce [nonceSize]byte
-	_, err := rand.Read(nonce[:])
-	if err != nil {
-		return nil, err
-	}
-
-	copy(ciphertext[:nonceSize], nonce[:])
-	encrypted := secretbox.Seal(ciphertext[nonceSize:nonceSize], plaintext, &nonce, &key)
-
-	return ciphertext[:nonceSize+len(encrypted)], nil
-}
-
-func decrypt(plaintext, ciphertext []byte, key [keySize]byte) ([]byte, error) {
-	if len(ciphertext) <= nonceSize {
-		return nil, fmt.Errorf("invalid ciphertext size %d", len(ciphertext))
-	}
-
-	var nonce [nonceSize]byte
-	copy(nonce[:], ciphertext[:nonceSize])
-
-	plaintext, ok := secretbox.Open(plaintext[:0], ciphertext[nonceSize:], &nonce, &key)
-	if !ok {
-		return nil, errors.New("decrypt failed")
-	}
-
-	return plaintext, nil
-}
 
 func createEncryptedStreamPair(alice, bob io.ReadWriter) (*EncryptedStream, *EncryptedStream, error) {
-	var key [keySize]byte
+	var key [32]byte
 	_, err := rand.Read(key[:])
 	if err != nil {
 		return nil, nil, err
 	}
 
 	config := &Config{
-		EncryptFunc: func(ciphertext, plaintext []byte) ([]byte, error) {
-			return encrypt(ciphertext, plaintext, key)
-		},
-		DecryptFunc: func(plaintext, ciphertext []byte) ([]byte, error) {
-			return decrypt(plaintext, ciphertext, key)
-		},
-		MaxEncryptOverhead: secretbox.Overhead + nonceSize,
+		Cipher: NewXSalsa20Poly1305Cipher(&key),
 	}
 
 	aliceEncrypted, err := NewEncryptedStream(alice, config)
