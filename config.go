@@ -8,24 +8,8 @@ import (
 
 // Config is the configuration for encrypted stream.
 type Config struct {
-	// EncryptFunc encrypts a plaintext to ciphertext. Returns ciphertext slice
-	// whose length should be equal to ciphertext length. Input buffer ciphertext
-	// has enough length for encrypted plaintext, and the length satisfy:
-	// 	len(plaintext) <= config.MaxChunkSize
-	// 	len(ciphertext) == config.MaxChunkSize + config.MaxOverheadSize
-	EncryptFunc func(ciphertext, plaintext []byte) ([]byte, error)
-
-	// DecryptFunc decrypts a ciphertext to plaintext. Returns plaintext slice
-	// whose length should be equal to plaintext length. Input buffer plaintext
-	// has enough length for decrypted ciphertext, and the length satisfy:
-	//	len(plaintext) == config.MaxChunkSize
-	//	len(ciphertext) <= config.MaxChunkSize + config.MaxOverheadSize
-	DecryptFunc func(plaintext, ciphertext []byte) ([]byte, error)
-
-	// MaxOverheadSize is the max number of bytes overhead of ciphertext compared
-	// to plaintext. It is only used to determine internal buffer size, so
-	// overestimate is ok. If zero, default value (64) will be used.
-	MaxEncryptOverhead int
+	// Cipher is used to encrypt and decrypt data.
+	Cipher Cipher
 
 	// MaxChunkSize is the max number of bytes that will be encrypted and write to
 	// underlying stream in a single chunk. If zero, default value (65535) will be
@@ -36,8 +20,7 @@ type Config struct {
 // DefaultConfig returns the default config.
 func DefaultConfig() *Config {
 	return &Config{
-		MaxEncryptOverhead: 64,
-		MaxChunkSize:       65535,
+		MaxChunkSize: 65535,
 	}
 }
 
@@ -47,16 +30,8 @@ func (config *Config) Verify() error {
 		return errors.New("nil config")
 	}
 
-	if config.EncryptFunc == nil {
-		return errors.New("EncryptFunc should not be nil")
-	}
-
-	if config.DecryptFunc == nil {
-		return errors.New("DecryptFunc should not be nil")
-	}
-
-	if config.MaxEncryptOverhead < 0 {
-		return errors.New("MaxEncryptOverhead should not be less than 0")
+	if config.Cipher.MaxOverhead() < 0 {
+		return errors.New("Cipher.MaxOverhead() should not be less than 0")
 	}
 
 	if config.MaxChunkSize <= 0 {

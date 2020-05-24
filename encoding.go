@@ -5,19 +5,10 @@ import (
 	"errors"
 	"io"
 	"math"
-	"sync"
 )
 
-var lenBufPool = sync.Pool{
-	New: func() interface{} {
-		return make([]byte, 4)
-	},
-}
-
 func readVarBytes(reader io.Reader, b []byte) (int, error) {
-	lenBuf := lenBufPool.Get().([]byte)
-	defer lenBufPool.Put(lenBuf)
-
+	lenBuf := make([]byte, 4)
 	_, err := io.ReadFull(reader, lenBuf)
 	if err != nil {
 		return 0, err
@@ -36,9 +27,7 @@ func writeVarBytes(writer io.Writer, b []byte) error {
 		return errors.New("data size too large")
 	}
 
-	lenBuf := lenBufPool.Get().([]byte)
-	defer lenBufPool.Put(lenBuf)
-
+	lenBuf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(lenBuf, uint32(len(b)))
 
 	_, err := writer.Write(lenBuf)

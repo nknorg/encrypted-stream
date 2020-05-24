@@ -43,8 +43,8 @@ func NewEncryptedStream(stream io.ReadWriter, config *Config) (*EncryptedStream,
 	es := &EncryptedStream{
 		config:        config,
 		stream:        stream,
-		readBuffer:    make([]byte, config.MaxChunkSize+config.MaxEncryptOverhead),
-		encryptBuffer: make([]byte, config.MaxChunkSize+config.MaxEncryptOverhead),
+		readBuffer:    make([]byte, config.MaxChunkSize+config.Cipher.MaxOverhead()),
+		encryptBuffer: make([]byte, config.MaxChunkSize+config.Cipher.MaxOverhead()),
 		decryptBuffer: make([]byte, config.MaxChunkSize),
 	}
 
@@ -73,12 +73,12 @@ func (es *EncryptedStream) Read(b []byte) (int, error) {
 			return 0, err
 		}
 
-		if n > es.config.MaxChunkSize+es.config.MaxEncryptOverhead {
+		if n > es.config.MaxChunkSize+es.config.Cipher.MaxOverhead() {
 			return 0, fmt.Errorf("received invalid encrypted data size %d", n)
 		}
 
 		es.decryptBuffer = es.decryptBuffer[:cap(es.decryptBuffer)]
-		es.decryptBuffer, err = es.config.DecryptFunc(es.decryptBuffer, es.readBuffer[:n])
+		es.decryptBuffer, err = es.config.Cipher.Decrypt(es.decryptBuffer, es.readBuffer[:n])
 		if err != nil {
 			return 0, err
 		}
@@ -111,7 +111,7 @@ func (es *EncryptedStream) Write(b []byte) (int, error) {
 		}
 
 		es.encryptBuffer = es.encryptBuffer[:cap(es.encryptBuffer)]
-		es.encryptBuffer, err = es.config.EncryptFunc(es.encryptBuffer, b[bytesWrite:bytesWrite+n])
+		es.encryptBuffer, err = es.config.Cipher.Encrypt(es.encryptBuffer, b[bytesWrite:bytesWrite+n])
 		if err != nil {
 			return bytesWrite, err
 		}
