@@ -18,8 +18,8 @@ Encrypted-stream is a Golang library that transforms any `net.Conn` or
 
 - Works with any encryption, authentication, or authenticated encryption
   algorithm or even arbitrary transformation. Only a cipher that implements
-  encrypt/decrypt needs to be provided. `XSalsa20Poly1305Cipher` is provided as
-  reference.
+  encrypt/decrypt needs to be provided. XSalsa20-Poly1305 and AES-GCM are
+  provided as reference cipher.
 
 - The encrypted stream only adds a small constant memory overhead compared to
   the original stream.
@@ -56,22 +56,19 @@ connection.
 
 ## Benchmark
 
-The following benchmark is using XSalsa20Poly1305Cipher
-(`golang.org/x/crypto/nacl/secretbox`).
-
 ```
-$ go test -v -bench=.
-=== RUN   TestPipe
---- PASS: TestPipe (0.01s)
-=== RUN   TestTCP
---- PASS: TestTCP (0.01s)
+$ go test -v -bench=. -run=^$
 goos: darwin
 goarch: amd64
 pkg: github.com/nknorg/encrypted-stream
-BenchmarkPipe-12    	    3867	    260929 ns/op	 502.33 MB/s	     292 B/op	       9 allocs/op
-BenchmarkTCP-12     	    6603	    215170 ns/op	 609.16 MB/s	     288 B/op	       9 allocs/op
+BenchmarkPipeXSalsa20Poly1305-12    	    4712	    254008 ns/op	 516.01 MB/s	       1 B/op	       0 allocs/op
+BenchmarkPipeAESGCM128-12           	   18675	     65688 ns/op	1995.38 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPipeAESGCM256-12           	   16060	     74029 ns/op	1770.55 MB/s	       0 B/op	       0 allocs/op
+BenchmarkTCPXSalsa20Poly1305-12     	    6760	    263446 ns/op	 497.53 MB/s	       0 B/op	       0 allocs/op
+BenchmarkTCPAESGCM128-12            	   14780	     82979 ns/op	1579.57 MB/s	       0 B/op	       0 allocs/op
+BenchmarkTCPAESGCM256-12            	   13321	     92393 ns/op	1418.64 MB/s	       0 B/op	       0 allocs/op
 PASS
-ok  	github.com/nknorg/encrypted-stream	2.509s
+ok  	github.com/nknorg/encrypted-stream	9.471s
 ```
 
 ## Contributing
