@@ -7,8 +7,11 @@ import (
 	"math"
 )
 
-func readVarBytes(reader io.Reader, b []byte) (int, error) {
-	lenBuf := make([]byte, 4)
+func readVarBytes(reader io.Reader, b, lenBuf []byte) (int, error) {
+	if len(lenBuf) < 4 {
+		lenBuf = make([]byte, 4)
+	}
+
 	_, err := io.ReadFull(reader, lenBuf)
 	if err != nil {
 		return 0, err
@@ -22,12 +25,15 @@ func readVarBytes(reader io.Reader, b []byte) (int, error) {
 	return io.ReadFull(reader, b[:n])
 }
 
-func writeVarBytes(writer io.Writer, b []byte) error {
+func writeVarBytes(writer io.Writer, b, lenBuf []byte) error {
 	if len(b) > math.MaxUint32 {
 		return errors.New("data size too large")
 	}
 
-	lenBuf := make([]byte, 4)
+	if len(lenBuf) < 4 {
+		lenBuf = make([]byte, 4)
+	}
+
 	binary.LittleEndian.PutUint32(lenBuf, uint32(len(b)))
 
 	_, err := writer.Write(lenBuf)

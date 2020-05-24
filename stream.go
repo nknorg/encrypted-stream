@@ -18,13 +18,15 @@ type EncryptedStream struct {
 	isClosed bool
 
 	readLock        sync.Mutex
+	readLenBuffer   []byte
 	readBuffer      []byte
 	decryptBuffer   []byte
 	decryptBufStart int
 	decryptBufEnd   int
 
-	writeLock     sync.Mutex
-	encryptBuffer []byte
+	writeLock      sync.Mutex
+	writeLenBuffer []byte
+	encryptBuffer  []byte
 }
 
 // NewEncryptedStream creates an EncryptedStream with a given ReadWriter and
@@ -41,11 +43,13 @@ func NewEncryptedStream(stream io.ReadWriter, config *Config) (*EncryptedStream,
 	}
 
 	es := &EncryptedStream{
-		config:        config,
-		stream:        stream,
-		readBuffer:    make([]byte, config.MaxChunkSize+config.Cipher.MaxOverhead()),
-		encryptBuffer: make([]byte, config.MaxChunkSize+config.Cipher.MaxOverhead()),
-		decryptBuffer: make([]byte, config.MaxChunkSize),
+		config:         config,
+		stream:         stream,
+		readBuffer:     make([]byte, config.MaxChunkSize+config.Cipher.MaxOverhead()),
+		encryptBuffer:  make([]byte, config.MaxChunkSize+config.Cipher.MaxOverhead()),
+		decryptBuffer:  make([]byte, config.MaxChunkSize),
+		readLenBuffer:  make([]byte, 4),
+		writeLenBuffer: make([]byte, 4),
 	}
 
 	return es, nil
@@ -68,7 +72,7 @@ func (es *EncryptedStream) Read(b []byte) (int, error) {
 	defer es.readLock.Unlock()
 
 	if es.decryptBufStart >= es.decryptBufEnd {
-		n, err := readVarBytes(es.stream, es.readBuffer)
+		n, err := readVarBytes(es.stream, es.readBuffer, es.readLenBuffer)
 		if err != nil {
 			return 0, err
 		}
@@ -116,7 +120,7 @@ func (es *EncryptedStream) Write(b []byte) (int, error) {
 			return bytesWrite, err
 		}
 
-		err = writeVarBytes(es.stream, es.encryptBuffer)
+		err = writeVarBytes(es.stream, es.encryptBuffer, es.writeLenBuffer)
 		if err != nil {
 			return bytesWrite, err
 		}
