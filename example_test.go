@@ -18,8 +18,6 @@ func Example() {
 	// cryptography, you can to do key exchange here using the original stream
 	// (e.g. alice sends her public key to bob given that she already know bob's
 	// public key) before creating encrypted stream from it.
-
-	// In this example we use a fixed key.
 	var key [32]byte
 	_, err = rand.Read(key[:])
 	if err != nil {

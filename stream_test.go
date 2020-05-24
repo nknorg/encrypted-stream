@@ -4,21 +4,55 @@ import (
 	"bytes"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"sync"
 	"testing"
 )
 
-func createEncryptedStreamPair(alice, bob io.ReadWriter) (*EncryptedStream, *EncryptedStream, error) {
-	var key [32]byte
-	_, err := rand.Read(key[:])
-	if err != nil {
-		return nil, nil, err
+const (
+	xsalsa20poly1305 = iota
+	aesgcm128
+	aesgcm256
+)
+
+func createEncryptedStreamPair(alice, bob io.ReadWriter, cipherID int) (*EncryptedStream, *EncryptedStream, error) {
+	var cipher Cipher
+	switch cipherID {
+	case xsalsa20poly1305:
+		var key [32]byte
+		_, err := rand.Read(key[:])
+		if err != nil {
+			return nil, nil, err
+		}
+		cipher = NewXSalsa20Poly1305Cipher(&key)
+	case aesgcm128:
+		key := make([]byte, 16)
+		_, err := rand.Read(key)
+		if err != nil {
+			return nil, nil, err
+		}
+		cipher, err = NewAESGCMCipher(key)
+		if err != nil {
+			return nil, nil, err
+		}
+	case aesgcm256:
+		key := make([]byte, 32)
+		_, err := rand.Read(key)
+		if err != nil {
+			return nil, nil, err
+		}
+		cipher, err = NewAESGCMCipher(key)
+		if err != nil {
+			return nil, nil, err
+		}
+	default:
+		return nil, nil, fmt.Errorf("unknown cipher %v", cipherID)
 	}
 
 	config := &Config{
-		Cipher: NewXSalsa20Poly1305Cipher(&key),
+		Cipher: cipher,
 	}
 
 	aliceEncrypted, err := NewEncryptedStream(alice, config)
@@ -142,20 +176,20 @@ type readeWriteCloser struct {
 	io.Closer
 }
 
-func createPipe(encrypted bool) (io.ReadWriteCloser, io.ReadWriteCloser, error) {
+func createPipe(encrypted bool, cipherID int) (io.ReadWriteCloser, io.ReadWriteCloser, error) {
 	aliceReader, bobWriter := io.Pipe()
 	bobReader, aliceWriter := io.Pipe()
 	alice := &readeWriteCloser{Reader: aliceReader, Writer: aliceWriter, Closer: aliceWriter}
 	bob := &readeWriteCloser{Reader: bobReader, Writer: bobWriter, Closer: bobWriter}
 
 	if encrypted {
-		return createEncryptedStreamPair(alice, bob)
+		return createEncryptedStreamPair(alice, bob, cipherID)
 	}
 
 	return alice, bob, nil
 }
 
-func createTCPConn(encrypted bool) (net.Conn, net.Conn, error) {
+func createTCPConn(encrypted bool, cipherID int) (net.Conn, net.Conn, error) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, nil, err
@@ -186,14 +220,14 @@ func createTCPConn(encrypted bool) (net.Conn, net.Conn, error) {
 	}
 
 	if encrypted {
-		return createEncryptedStreamPair(alice, bob)
+		return createEncryptedStreamPair(alice, bob, cipherID)
 	}
 
 	return alice, bob, nil
 }
 
-func TestPipe(t *testing.T) {
-	alice, bob, err := createPipe(true)
+func TestPipeXSalsa20Poly1305(t *testing.T) {
+	alice, bob, err := createPipe(true, xsalsa20poly1305)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,8 +238,8 @@ func TestPipe(t *testing.T) {
 	}
 }
 
-func TestTCP(t *testing.T) {
-	alice, bob, err := createTCPConn(true)
+func TestPipeAESGCM128(t *testing.T) {
+	alice, bob, err := createPipe(true, aesgcm128)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,20 +250,98 @@ func TestTCP(t *testing.T) {
 	}
 }
 
-func BenchmarkPipe(b *testing.B) {
-	alice, bob, err := createPipe(true)
+func TestPipeAESGCM256(t *testing.T) {
+	alice, bob, err := createPipe(true, aesgcm256)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = readWriteTest(alice, bob)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTCPXSalsa20Poly1305(t *testing.T) {
+	alice, bob, err := createTCPConn(true, xsalsa20poly1305)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = readWriteTest(alice, bob)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTCPAESGCM128(t *testing.T) {
+	alice, bob, err := createTCPConn(true, aesgcm128)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = readWriteTest(alice, bob)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTCPAESGCM256(t *testing.T) {
+	alice, bob, err := createTCPConn(true, aesgcm256)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = readWriteTest(alice, bob)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func BenchmarkPipeXSalsa20Poly1305(b *testing.B) {
+	alice, bob, err := createPipe(true, xsalsa20poly1305)
 	if err != nil {
 		b.Fatal(err)
 	}
-
 	readWriteBenchmark(b, alice, bob)
 }
 
-func BenchmarkTCP(b *testing.B) {
-	alice, bob, err := createTCPConn(true)
+func BenchmarkPipeAESGCM128(b *testing.B) {
+	alice, bob, err := createPipe(true, aesgcm128)
 	if err != nil {
 		b.Fatal(err)
 	}
+	readWriteBenchmark(b, alice, bob)
+}
 
+func BenchmarkPipeAESGCM256(b *testing.B) {
+	alice, bob, err := createPipe(true, aesgcm256)
+	if err != nil {
+		b.Fatal(err)
+	}
+	readWriteBenchmark(b, alice, bob)
+}
+
+func BenchmarkTCPXSalsa20Poly1305(b *testing.B) {
+	alice, bob, err := createTCPConn(true, xsalsa20poly1305)
+	if err != nil {
+		b.Fatal(err)
+	}
+	readWriteBenchmark(b, alice, bob)
+}
+
+func BenchmarkTCPAESGCM128(b *testing.B) {
+	alice, bob, err := createTCPConn(true, aesgcm128)
+	if err != nil {
+		b.Fatal(err)
+	}
+	readWriteBenchmark(b, alice, bob)
+}
+
+func BenchmarkTCPAESGCM256(b *testing.B) {
+	alice, bob, err := createTCPConn(true, aesgcm256)
+	if err != nil {
+		b.Fatal(err)
+	}
 	readWriteBenchmark(b, alice, bob)
 }
