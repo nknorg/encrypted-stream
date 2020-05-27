@@ -26,7 +26,7 @@ func readVarBytes(reader io.Reader, b, lenBuf []byte) (int, error) {
 }
 
 func writeVarBytes(writer io.Writer, b, lenBuf []byte) error {
-	if len(b) > math.MaxUint32 {
+	if len(b) > math.MaxInt32 {
 		return errors.New("data size too large")
 	}
 
