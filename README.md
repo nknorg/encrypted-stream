@@ -24,6 +24,9 @@ Encrypted-stream is a Golang library that transforms any `net.Conn` or
 - The encrypted stream only adds a small constant memory overhead compared to
   the original stream.
 
+Note: this library does not handle handshake or key exchange. Handshake should
+be done separately before using this library to compute a shared key.
+
 ## Documentation
 
 Full documentation can be found at
@@ -38,13 +41,15 @@ Assume you have a `net.Conn` and you want to transform it into an encrypted
 conn, err := net.Dial("tcp", "host:port")
 ```
 
-You first need to have a shared key at both side of the connection, (e.g.
-derived from  key exchange algorithm, or pre-determined). Then all you
-need to do is to choose or implements a cipher:
+You first need to have a shared key at both side of the connection (e.g.
+derived from  key exchange algorithm). Then all you need to do is to choose or
+implements a cipher:
 
 ```go
 encryptedConn, err := stream.NewEncryptedStream(conn, &stream.Config{
   Cipher: stream.NewXSalsa20Poly1305Cipher(&key),
+  SequentialNonce: true, // only when key is unique for every stream
+  Initiator: true, // only on the dialer side
 })
 ```
 
@@ -61,14 +66,14 @@ $ go test -v -bench=. -run=^$
 goos: darwin
 goarch: amd64
 pkg: github.com/nknorg/encrypted-stream
-BenchmarkPipeXSalsa20Poly1305-12    	    4712	    254008 ns/op	 516.01 MB/s	       1 B/op	       0 allocs/op
-BenchmarkPipeAESGCM128-12           	   18675	     65688 ns/op	1995.38 MB/s	       0 B/op	       0 allocs/op
-BenchmarkPipeAESGCM256-12           	   16060	     74029 ns/op	1770.55 MB/s	       0 B/op	       0 allocs/op
-BenchmarkTCPXSalsa20Poly1305-12     	    6760	    263446 ns/op	 497.53 MB/s	       0 B/op	       0 allocs/op
-BenchmarkTCPAESGCM128-12            	   14780	     82979 ns/op	1579.57 MB/s	       0 B/op	       0 allocs/op
-BenchmarkTCPAESGCM256-12            	   13321	     92393 ns/op	1418.64 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPipeXSalsa20Poly1305-12    	    4064	    266725 ns/op	 491.41 MB/s	       3 B/op	       0 allocs/op
+BenchmarkPipeAESGCM128-12           	   16195	     71669 ns/op	1828.86 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPipeAESGCM256-12           	   14328	     83337 ns/op	1572.79 MB/s	       0 B/op	       0 allocs/op
+BenchmarkTCPXSalsa20Poly1305-12     	    6489	    185980 ns/op	 704.76 MB/s	       0 B/op	       0 allocs/op
+BenchmarkTCPAESGCM128-12            	   20089	     59684 ns/op	2196.08 MB/s	       0 B/op	       0 allocs/op
+BenchmarkTCPAESGCM256-12            	   17656	     67721 ns/op	1935.48 MB/s	       0 B/op	       0 allocs/op
 PASS
-ok  	github.com/nknorg/encrypted-stream	9.471s
+ok  	github.com/nknorg/encrypted-stream	9.997s
 ```
 
 ## Contributing

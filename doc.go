@@ -14,5 +14,8 @@ as reference cipher.
 3. The encrypted stream only adds a small constant memory overhead compared to
 the original stream.
 
+Note: this library does not handle handshake or key exchange. Handshake should
+be done separately before using this library to compute a shared key.
+
 */
 package stream

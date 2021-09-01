@@ -14,10 +14,9 @@ func Example() {
 		panic(err)
 	}
 
-	// In this example we treat key as a prior knowledge. If you use public-key
-	// cryptography, you can to do key exchange here using the original stream
-	// (e.g. alice sends her public key to bob given that she already know bob's
-	// public key) before creating encrypted stream from it.
+	// In this example we treat key as a prior knowledge. In actual usage you can
+	// do handshake here using the original stream and compute shared key before
+	// creating encrypted stream from it.
 	var key [32]byte
 	_, err = rand.Read(key[:])
 	if err != nil {
@@ -25,7 +24,9 @@ func Example() {
 	}
 
 	config := &stream.Config{
-		Cipher: stream.NewXSalsa20Poly1305Cipher(&key),
+		Cipher:          stream.NewXSalsa20Poly1305Cipher(&key),
+		SequentialNonce: true, // only when key is unique for every stream
+		Initiator:       true, // only on the dialer side
 	}
 
 	// Create an encrypted stream from a conn.
