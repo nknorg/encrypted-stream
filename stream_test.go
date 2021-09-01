@@ -51,16 +51,19 @@ func createEncryptedStreamPair(alice, bob io.ReadWriter, cipherID int) (*Encrypt
 		return nil, nil, fmt.Errorf("unknown cipher %v", cipherID)
 	}
 
-	config := &Config{
-		Cipher: cipher,
-	}
-
-	aliceEncrypted, err := NewEncryptedStream(alice, config)
+	aliceEncrypted, err := NewEncryptedStream(alice, &Config{
+		Cipher:          cipher,
+		SequentialNonce: true,
+		Initiator:       true,
+	})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	bobEncrypted, err := NewEncryptedStream(bob, config)
+	bobEncrypted, err := NewEncryptedStream(bob, &Config{
+		Cipher:          cipher,
+		SequentialNonce: true,
+	})
 	if err != nil {
 		return nil, nil, err
 	}

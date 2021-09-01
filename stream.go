@@ -11,8 +11,10 @@ import (
 // EncryptedStream is an encrypted stream. Data are encrypted before writing to
 // underlying stream, and are decrypted after reading from underlying stream.
 type EncryptedStream struct {
-	config *Config
-	stream io.ReadWriter
+	config  *Config
+	stream  io.ReadWriter
+	encoder *Encoder
+	decoder *Decoder
 
 	lock     sync.RWMutex
 	isClosed bool
@@ -42,11 +44,23 @@ func NewEncryptedStream(stream io.ReadWriter, config *Config) (*EncryptedStream,
 		return nil, err
 	}
 
+	encoder, err := NewEncoder(config.Cipher, config.Initiator, config.SequentialNonce)
+	if err != nil {
+		return nil, err
+	}
+
+	decoder, err := NewDecoder(config.Cipher, config.Initiator, config.SequentialNonce, config.DisableNonceVerification)
+	if err != nil {
+		return nil, err
+	}
+
 	es := &EncryptedStream{
 		config:         config,
 		stream:         stream,
-		readBuffer:     make([]byte, config.MaxChunkSize+config.Cipher.MaxOverhead()),
-		encryptBuffer:  make([]byte, config.MaxChunkSize+config.Cipher.MaxOverhead()),
+		encoder:        encoder,
+		decoder:        decoder,
+		readBuffer:     make([]byte, config.MaxChunkSize+config.Cipher.MaxOverhead()+config.Cipher.NonceSize()),
+		encryptBuffer:  make([]byte, config.MaxChunkSize+config.Cipher.MaxOverhead()+config.Cipher.NonceSize()),
 		decryptBuffer:  make([]byte, config.MaxChunkSize),
 		readLenBuffer:  make([]byte, 4),
 		writeLenBuffer: make([]byte, 4),
@@ -77,12 +91,12 @@ func (es *EncryptedStream) Read(b []byte) (int, error) {
 			return 0, err
 		}
 
-		if n > es.config.MaxChunkSize+es.config.Cipher.MaxOverhead() {
+		if n > es.config.MaxChunkSize+es.config.Cipher.MaxOverhead()+es.config.Cipher.NonceSize() {
 			return 0, fmt.Errorf("received invalid encrypted data size %d", n)
 		}
 
 		es.decryptBuffer = es.decryptBuffer[:cap(es.decryptBuffer)]
-		es.decryptBuffer, err = es.config.Cipher.Decrypt(es.decryptBuffer, es.readBuffer[:n])
+		es.decryptBuffer, err = es.decoder.Decode(es.decryptBuffer, es.readBuffer[:n])
 		if err != nil {
 			return 0, err
 		}
@@ -115,7 +129,7 @@ func (es *EncryptedStream) Write(b []byte) (int, error) {
 		}
 
 		es.encryptBuffer = es.encryptBuffer[:cap(es.encryptBuffer)]
-		es.encryptBuffer, err = es.config.Cipher.Encrypt(es.encryptBuffer, b[bytesWrite:bytesWrite+n])
+		es.encryptBuffer, err = es.encoder.Encode(es.encryptBuffer, b[bytesWrite:bytesWrite+n])
 		if err != nil {
 			return bytesWrite, err
 		}
