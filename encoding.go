@@ -40,6 +40,9 @@ type Encoder struct {
 
 // NewEncoder creates a Encoder with given cipher and config.
 func NewEncoder(cipher Cipher, initiator, sequentialNonce bool) (*Encoder, error) {
+	if cipher == nil {
+		return &Encoder{}, nil
+	}
 	encoder := &Encoder{
 		cipher:          cipher,
 		initiator:       initiator,
@@ -54,8 +57,12 @@ func NewEncoder(cipher Cipher, initiator, sequentialNonce bool) (*Encoder, error
 // Encode encodes a plaintext to nonce + ciphertext. When sequential nonce is
 // true, Encode is not thread safe and should not be called concurrently.
 func (e *Encoder) Encode(ciphertext, plaintext []byte) ([]byte, error) {
-	nonceSize := e.cipher.NonceSize()
+	if e.cipher == nil {
+		copy(ciphertext, plaintext)
+		return ciphertext[:len(plaintext)], nil
+	}
 
+	nonceSize := e.cipher.NonceSize()
 	if e.sequentialNonce {
 		if bytes.Compare(e.nextNonce, e.maxNonce) >= 0 {
 			return nil, ErrMaxNonce
@@ -94,6 +101,9 @@ type Decoder struct {
 
 // NewDecoder creates a Decoder with given cipher and config.
 func NewDecoder(cipher Cipher, initiator, sequentialNonce, disableNonceVerification bool) (*Decoder, error) {
+	if cipher == nil {
+		return &Decoder{}, nil
+	}
 	decoder := &Decoder{
 		cipher:                   cipher,
 		initiator:                initiator,
@@ -108,6 +118,11 @@ func NewDecoder(cipher Cipher, initiator, sequentialNonce, disableNonceVerificat
 // Decode decodes a nonce + ciphertext to plaintext. When sequential nonce is
 // true, Decode is not thread safe and should not be called concurrently.
 func (d *Decoder) Decode(plaintext, ciphertext []byte) ([]byte, error) {
+	if d.cipher == nil {
+		copy(plaintext, ciphertext)
+		return plaintext[:len(ciphertext)], nil
+	}
+
 	nonceSize := d.cipher.NonceSize()
 	if len(ciphertext) <= nonceSize {
 		return nil, fmt.Errorf("invalid ciphertext size %d", len(ciphertext))
