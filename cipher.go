@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/nacl/secretbox"
 )
 
@@ -147,4 +148,26 @@ func NewAESGCMCipher(key []byte) (*CryptoAEADCipher, error) {
 	}
 
 	return NewCryptoAEADCipher(aesgcm), nil
+}
+
+// NewChaCha20Poly1305Cipher creates a ChaCha20-Poly1305 AEAD that uses the
+// given 256-bit key.
+func NewChaCha20Poly1305Cipher(key []byte) (*CryptoAEADCipher, error) {
+	cipher, err := chacha20poly1305.New(key)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewCryptoAEADCipher(cipher), nil
+}
+
+// NewXChaCha20Poly1305Cipher creates a XChaCha20-Poly1305 AEAD that uses the
+// given 256-bit key.
+func NewXChaCha20Poly1305Cipher(key []byte) (*CryptoAEADCipher, error) {
+	cipher, err := chacha20poly1305.NewX(key)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewCryptoAEADCipher(cipher), nil
 }
