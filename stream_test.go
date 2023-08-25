@@ -15,6 +15,8 @@ const (
 	xsalsa20poly1305 = iota
 	aesgcm128
 	aesgcm256
+	cc20p1305
+	xcc20p1305
 )
 
 func createEncryptedStreamPair(alice, bob io.ReadWriter, cipherID int) (*EncryptedStream, *EncryptedStream, error) {
@@ -44,6 +46,26 @@ func createEncryptedStreamPair(alice, bob io.ReadWriter, cipherID int) (*Encrypt
 			return nil, nil, err
 		}
 		cipher, err = NewAESGCMCipher(key)
+		if err != nil {
+			return nil, nil, err
+		}
+	case cc20p1305:
+		key := make([]byte, 32)
+		_, err := rand.Read(key[:])
+		if err != nil {
+			return nil, nil, err
+		}
+		cipher, err = NewChaCha20Poly1305Cipher(key)
+		if err != nil {
+			return nil, nil, err
+		}
+	case xcc20p1305:
+		key := make([]byte, 32)
+		_, err := rand.Read(key[:])
+		if err != nil {
+			return nil, nil, err
+		}
+		cipher, err = NewXChaCha20Poly1305Cipher(key)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -173,7 +195,7 @@ func readWriteBenchmark(b *testing.B, r io.Reader, w io.Writer) {
 	}
 }
 
-type readeWriteCloser struct {
+type readWriteCloser struct {
 	io.Reader
 	io.Writer
 	io.Closer
@@ -182,8 +204,8 @@ type readeWriteCloser struct {
 func createPipe(encrypted bool, cipherID int) (io.ReadWriteCloser, io.ReadWriteCloser, error) {
 	aliceReader, bobWriter := io.Pipe()
 	bobReader, aliceWriter := io.Pipe()
-	alice := &readeWriteCloser{Reader: aliceReader, Writer: aliceWriter, Closer: aliceWriter}
-	bob := &readeWriteCloser{Reader: bobReader, Writer: bobWriter, Closer: bobWriter}
+	alice := &readWriteCloser{Reader: aliceReader, Writer: aliceWriter, Closer: aliceWriter}
+	bob := &readWriteCloser{Reader: bobReader, Writer: bobWriter, Closer: bobWriter}
 
 	if encrypted {
 		return createEncryptedStreamPair(alice, bob, cipherID)
@@ -241,6 +263,30 @@ func TestPipeXSalsa20Poly1305(t *testing.T) {
 	}
 }
 
+func TestPipeChaCha20Poly1305(t *testing.T) {
+	alice, bob, err := createPipe(true, cc20p1305)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = readWriteTest(alice, bob)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPipeXChaCha20Poly1305(t *testing.T) {
+	alice, bob, err := createPipe(true, xcc20p1305)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = readWriteTest(alice, bob)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestPipeAESGCM128(t *testing.T) {
 	alice, bob, err := createPipe(true, aesgcm128)
 	if err != nil {
@@ -267,6 +313,30 @@ func TestPipeAESGCM256(t *testing.T) {
 
 func TestTCPXSalsa20Poly1305(t *testing.T) {
 	alice, bob, err := createTCPConn(true, xsalsa20poly1305)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = readWriteTest(alice, bob)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTCPChaCha20Poly1305(t *testing.T) {
+	alice, bob, err := createTCPConn(true, cc20p1305)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = readWriteTest(alice, bob)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTCPXChaCha20Poly1305(t *testing.T) {
+	alice, bob, err := createTCPConn(true, xcc20p1305)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,6 +379,22 @@ func BenchmarkPipeXSalsa20Poly1305(b *testing.B) {
 	readWriteBenchmark(b, alice, bob)
 }
 
+func BenchmarkPipeChaCha20Poly1305(b *testing.B) {
+	alice, bob, err := createPipe(true, cc20p1305)
+	if err != nil {
+		b.Fatal(err)
+	}
+	readWriteBenchmark(b, alice, bob)
+}
+
+func BenchmarkPipeXChaCha20Poly1305(b *testing.B) {
+	alice, bob, err := createPipe(true, xcc20p1305)
+	if err != nil {
+		b.Fatal(err)
+	}
+	readWriteBenchmark(b, alice, bob)
+}
+
 func BenchmarkPipeAESGCM128(b *testing.B) {
 	alice, bob, err := createPipe(true, aesgcm128)
 	if err != nil {
@@ -327,6 +413,22 @@ func BenchmarkPipeAESGCM256(b *testing.B) {
 
 func BenchmarkTCPXSalsa20Poly1305(b *testing.B) {
 	alice, bob, err := createTCPConn(true, xsalsa20poly1305)
+	if err != nil {
+		b.Fatal(err)
+	}
+	readWriteBenchmark(b, alice, bob)
+}
+
+func BenchmarkTCPChaCha20Poly1305(b *testing.B) {
+	alice, bob, err := createTCPConn(true, cc20p1305)
+	if err != nil {
+		b.Fatal(err)
+	}
+	readWriteBenchmark(b, alice, bob)
+}
+
+func BenchmarkTCPXChaCha20Poly1305(b *testing.B) {
+	alice, bob, err := createTCPConn(true, xcc20p1305)
 	if err != nil {
 		b.Fatal(err)
 	}
